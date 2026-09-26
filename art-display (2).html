@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Art Display</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  .frame {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  .art-img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+  }
+
+  .art-img.visible {
+    opacity: 1;
+  }
+
+  .caption {
+    position: fixed;
+    bottom: 24px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    font-size: 20px;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+    padding: 0 40px;
+    box-sizing: border-box;
+  }
+
+  .caption.visible {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame"></div>
+<div class="caption" id="caption"></div>
+
+<script>
+  // How long each artwork stays on screen (ms)
+  const DISPLAY_TIME = 25000;
+
+  // Fixed list of public-domain paintings from the Art Institute of Chicago.
+  // Add more by finding an artwork's image_id at https://api.artic.edu/api/v1/artworks/{id}
+  const ARTWORKS = [
+    {
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      imageId: "3c27b499-af56-f0d5-93b5-a7f2f1ad5813"
+    },
+    {
+      title: "A Sunday on La Grande Jatte",
+      artist: "Georges Seurat",
+      imageId: "2d484387-2509-5e8e-2c43-22f9981972eb"
+    },
+    {
+      title: "Two Sisters (On the Terrace)",
+      artist: "Pierre-Auguste Renoir",
+      imageId: "3a608f55-d76e-fa96-d0b1-0789fbc48f1e"
+    },
+    {
+      title: "Scene from Bohemian Life",
+      artist: "James McNeill Whistler",
+      imageId: "15c13ae6-7fe8-d06b-7462-aee0c985b220"
+    },
+    {
+      title: "Self-Portrait",
+      artist: "Vincent van Gogh",
+      imageId: "47c5bcb8-62ef-e5d7-55e7-f5121f409a30"
+    },
+    {
+      title: "The Bedroom",
+      artist: "Vincent van Gogh",
+      imageId: "6644829f-f292-c5c4-a73c-0356a6fdbf0d"
+    },
+    {
+      title: "Paris Street; Rainy Day",
+      artist: "Gustave Caillebotte",
+      imageId: "f8fd76e9-c396-5678-36ed-6a348c904d27"
+    },
+    {
+      title: "The Child's Bath",
+      artist: "Mary Cassatt",
+      imageId: "3b885ae0-4d46-5fe4-d70a-00474827f02c"
+    },
+    {
+      title: "The Basket of Apples",
+      artist: "Paul Cezanne",
+      imageId: "52ac8996-3460-cf71-cb42-5c4d0aa29b74"
+    },
+    {
+      title: "The Plate of Apples",
+      artist: "Paul Cezanne",
+      imageId: "2e6d6a89-61bd-5098-59d3-b41d14bf7973"
+    },
+    {
+      title: "Moulin de la Galette",
+      artist: "Henri de Toulouse-Lautrec",
+      imageId: "156aaed6-fe3c-a13c-f39e-55f381205929"
+    },
+    {
+      title: "Moulin Rouge, La Goulue",
+      artist: "Henri de Toulouse-Lautrec",
+      imageId: "1d82da66-d99e-f4f6-d5fc-56b22b6678ba"
+    },
+    {
+      title: "At the Moulin Rouge",
+      artist: "Henri de Toulouse-Lautrec",
+      imageId: "defb4004-b500-218d-3d9b-9a02423f097d"
+    },
+    {
+      title: "Stacks of Wheat (End of Day, Autumn)",
+      artist: "Claude Monet",
+      imageId: "4c364c64-2108-4e19-5fc5-1ab26ba924a7"
+    },
+    {
+      title: "Stack of Wheat",
+      artist: "Claude Monet",
+      imageId: "27c1d720-8ca5-79a4-5e51-530bf75c1591"
+    },
+    {
+      title: "Stacks of Wheat (Sunset, Snow Effect)",
+      artist: "Claude Monet",
+      imageId: "be0d3e50-a600-6f33-ea8f-16a34d892442"
+    },
+    {
+      title: "The Millinery Shop",
+      artist: "Edgar Degas",
+      imageId: "6f513908-03cc-b974-633b-adfce56b7936"
+    },
+    {
+      title: "Final Study for \"Bathers at Asnières\"",
+      artist: "Georges Seurat",
+      imageId: "1db67905-d421-95bf-1e91-4b60dd776886"
+    },
+    {
+      title: "The Bathers",
+      artist: "William Adolphe Bouguereau",
+      imageId: "31f0a9a3-8a0d-44ed-6de8-66142b75c4c0"
+    },
+    {
+      title: "The Herring Net",
+      artist: "Winslow Homer",
+      imageId: "5dca7347-c6dc-24dd-d073-d705b9cdc575"
+    }
+  ];
+
+  let playlist = [];
+  let currentIndex = 0;
+  let activeImg = null;
+
+  function shuffledArtworks() {
+    const items = ARTWORKS.slice();
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  }
+
+  function imageUrlFor(imageId) {
+    return "https://www.artic.edu/iiif/2/" + imageId + "/full/1686,/0/default.jpg";
+  }
+
+  function showArtwork(artwork) {
+    const frame = document.getElementById("frame");
+    const caption = document.getElementById("caption");
+
+    const img = document.createElement("img");
+    img.className = "art-img";
+    img.src = imageUrlFor(artwork.imageId);
+
+    img.onload = () => {
+      frame.appendChild(img);
+      requestAnimationFrame(() => img.classList.add("visible"));
+
+      const label = [artwork.title, artwork.artist]
+        .filter(Boolean)
+        .join(" — ");
+      caption.textContent = label;
+      caption.classList.add("visible");
+
+      if (activeImg) {
+        const old = activeImg;
+        old.classList.remove("visible");
+        setTimeout(() => old.remove(), 2100);
+      }
+      activeImg = img;
+    };
+
+    img.onerror = () => {
+      // Skip broken images and move on immediately
+      advance();
+    };
+  }
+
+  function advance() {
+    if (currentIndex >= playlist.length) {
+      playlist = shuffledArtworks();
+      currentIndex = 0;
+    }
+    showArtwork(playlist[currentIndex]);
+    currentIndex++;
+    setTimeout(advance, DISPLAY_TIME);
+  }
+
+  advance();
+</script>
+
+</body>
+</html>
