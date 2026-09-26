@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Art Display</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  .frame {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  .art-img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+  }
+
+  .art-img.visible {
+    opacity: 1;
+  }
+
+  .caption {
+    position: fixed;
+    bottom: 24px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    font-size: 20px;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+    padding: 0 40px;
+    box-sizing: border-box;
+  }
+
+  .caption.visible {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame"></div>
+<div class="caption" id="caption"></div>
+
+<script>
+  // How long each artwork stays on screen (ms)
+  const DISPLAY_TIME = 25000;
+
+  // Fixed list of public-domain paintings from the Art Institute of Chicago.
+  // Add more by finding an artwork's image_id at https://api.artic.edu/api/v1/artworks/{id}
+  const ARTWORKS = [
+    {
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      imageId: "3c27b499-af56-f0d5-93b5-a7f2f1ad5813"
+    },
+    {
+      title: "A Sunday on La Grande Jatte",
+      artist: "Georges Seurat",
+      imageId: "2d484387-2509-5e8e-2c43-22f9981972eb"
+    },
+    {
+      title: "Two Sisters (On the Terrace)",
+      artist: "Pierre-Auguste Renoir",
+      imageId: "3a608f55-d76e-fa96-d0b1-0789fbc48f1e"
+    },
+    {
+      title: "Scene from Bohemian Life",
+      artist: "James McNeill Whistler",
+      imageId: "15c13ae6-7fe8-d06b-7462-aee0c985b220"
+    }
+  ];
+
+  let playlist = [];
+  let currentIndex = 0;
+  let activeImg = null;
+
+  function shuffledArtworks() {
+    const items = ARTWORKS.slice();
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  }
+
+  function imageUrlFor(imageId) {
+    return "https://www.artic.edu/iiif/2/" + imageId + "/full/1686,/0/default.jpg";
+  }
+
+  function showArtwork(artwork) {
+    const frame = document.getElementById("frame");
+    const caption = document.getElementById("caption");
+
+    const img = document.createElement("img");
+    img.className = "art-img";
+    img.src = imageUrlFor(artwork.imageId);
+
+    img.onload = () => {
+      frame.appendChild(img);
+      requestAnimationFrame(() => img.classList.add("visible"));
+
+      const label = [artwork.title, artwork.artist]
+        .filter(Boolean)
+        .join(" — ");
+      caption.textContent = label;
+      caption.classList.add("visible");
+
+      if (activeImg) {
+        const old = activeImg;
+        old.classList.remove("visible");
+        setTimeout(() => old.remove(), 2100);
+      }
+      activeImg = img;
+    };
+
+    img.onerror = () => {
+      // Skip broken images and move on immediately
+      advance();
+    };
+  }
+
+  function advance() {
+    if (currentIndex >= playlist.length) {
+      playlist = shuffledArtworks();
+      currentIndex = 0;
+    }
+    showArtwork(playlist[currentIndex]);
+    currentIndex++;
+    setTimeout(advance, DISPLAY_TIME);
+  }
+
+  advance();
+</script>
+
+</body>
+</html>
