@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Art Display</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  .frame {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  .art-img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+  }
+
+  .art-img.visible {
+    opacity: 1;
+  }
+
+  .caption {
+    position: fixed;
+    bottom: 24px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    font-size: 20px;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+    padding: 0 40px;
+    box-sizing: border-box;
+  }
+
+  .caption.visible {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame"></div>
+<div class="caption" id="caption"></div>
+
+<script>
+  // How long each artwork stays on screen (ms)
+  const DISPLAY_TIME = 25000;
+
+  // Simple in-memory playlist of artworks, refilled from the Art Institute
+  // of Chicago's free public API (no key required, CORS enabled).
+  let playlist = [];
+  let currentIndex = 0;
+  let activeImg = null;
+
+  async function fetchArtworks() {
+    const randomPage = Math.floor(Math.random() * 50) + 1;
+    const url = "https://api.artic.edu/api/v1/artworks/search"
+      + "?query[term][is_public_domain]=true"
+      + "&query[exists][field]=image_id"
+      + "&fields=id,title,artist_display,image_id"
+      + "&limit=40"
+      + "&page=" + randomPage;
+
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      const items = (data.data || []).filter(item => item.image_id);
+      // shuffle
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      return items;
+    } catch (err) {
+      console.error("Failed to fetch artworks:", err);
+      return [];
+    }
+  }
+
+  function imageUrlFor(imageId) {
+    return "https://www.artic.edu/iiif/2/" + imageId + "/full/1686,/0/default.jpg";
+  }
+
+  function showArtwork(artwork) {
+    const frame = document.getElementById("frame");
+    const caption = document.getElementById("caption");
+
+    const img = document.createElement("img");
+    img.className = "art-img";
+    img.src = imageUrlFor(artwork.image_id);
+
+    img.onload = () => {
+      frame.appendChild(img);
+      requestAnimationFrame(() => img.classList.add("visible"));
+
+      const label = [artwork.title, artwork.artist_display]
+        .filter(Boolean)
+        .join(" — ");
+      caption.textContent = label;
+      caption.classList.add("visible");
+
+      if (activeImg) {
+        const old = activeImg;
+        old.classList.remove("visible");
+        setTimeout(() => old.remove(), 2100);
+      }
+      activeImg = img;
+    };
+
+    img.onerror = () => {
+      // Skip broken images and move on immediately
+      advance();
+    };
+  }
+
+  async function advance() {
+    if (currentIndex >= playlist.length) {
+      playlist = await fetchArtworks();
+      currentIndex = 0;
+      if (playlist.length === 0) {
+        // Retry in a bit if the API call failed
+        setTimeout(advance, 10000);
+        return;
+      }
+    }
+    showArtwork(playlist[currentIndex]);
+    currentIndex++;
+    setTimeout(advance, DISPLAY_TIME);
+  }
+
+  advance();
+</script>
+
+</body>
+</html>
