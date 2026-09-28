@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Space Display</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  .frame {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  .art-img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+  }
+
+  .art-img.visible {
+    opacity: 1;
+  }
+
+  .caption {
+    position: fixed;
+    bottom: 24px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    font-size: 20px;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+    padding: 0 40px;
+    box-sizing: border-box;
+  }
+
+  .caption.visible {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame"></div>
+<div class="caption" id="caption"></div>
+
+<script>
+  // How long each artwork stays on screen (ms)
+  const DISPLAY_TIME = 25000;
+
+  // Fixed list of public-domain NASA space images, hosted on Wikimedia Commons.
+  // Add more by finding a file's exact name on commons.wikimedia.org.
+  const ARTWORKS = [
+    {
+      title: "Pillars of Creation",
+      artist: "NASA / ESA / Hubble Space Telescope (2014)",
+      file: "Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg"
+    },
+    {
+      title: "Earthrise",
+      artist: "NASA / Apollo 8 (1968)",
+      file: "NASA-Apollo8-Dec24-Earthrise.jpg"
+    },
+    {
+      title: "The Blue Marble",
+      artist: "NASA / Apollo 17 (1972)",
+      file: "The_Blue_Marble_(remastered).jpg"
+    },
+    {
+      title: "Buzz Aldrin on the Moon",
+      artist: "NASA / Apollo 11 (1969)",
+      file: "Aldrin_Apollo_11.jpg"
+    },
+    {
+      title: "Hubble Ultra Deep Field",
+      artist: "NASA / ESA / Hubble Space Telescope",
+      file: "Hubble_ultra_deep_field.jpg"
+    },
+    {
+      title: "The Whirlpool Galaxy (M51)",
+      artist: "NASA / ESA / Hubble Space Telescope",
+      file: "Messier51_sRGB.jpg"
+    },
+    {
+      title: "Saturn",
+      artist: "NASA / JPL / Cassini Orbiter (2004)",
+      file: "Saturn from Cassini Orbiter (2004-10-06).jpg"
+    },
+    {
+      title: "Pale Blue Dot",
+      artist: "NASA / JPL / Voyager 1 (1990)",
+      file: "PIA23645-Earth-PaleBlueDot-6Bkm-Voyager1-orig19900214-upd20200212.jpg"
+    },
+    {
+      title: "Cosmic Cliffs, Carina Nebula",
+      artist: "NASA / ESA / CSA / James Webb Space Telescope",
+      file: "Cosmic Cliffs in the Carina Nebula - left.png"
+    },
+    {
+      title: "Curiosity Rover Self-Portrait",
+      artist: "NASA / JPL-Caltech / MSSS (2012)",
+      file: "PIA16239 High-Resolution Self-Portrait by Curiosity Rover Arm Camera.jpg"
+    }
+  ];
+
+  let playlist = [];
+  let currentIndex = 0;
+  let activeImg = null;
+
+  function shuffledArtworks() {
+    const items = ARTWORKS.slice();
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  }
+
+  function imageUrlFor(fileName) {
+    // Wikimedia Commons "Special:FilePath" always redirects to the actual
+    // image file, so we don't need to know its internal hash/folder.
+    return "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(fileName);
+  }
+
+  function showArtwork(artwork) {
+    const frame = document.getElementById("frame");
+    const caption = document.getElementById("caption");
+
+    const img = document.createElement("img");
+    img.className = "art-img";
+    img.src = imageUrlFor(artwork.file);
+
+    img.onload = () => {
+      frame.appendChild(img);
+      requestAnimationFrame(() => img.classList.add("visible"));
+
+      const label = [artwork.title, artwork.artist]
+        .filter(Boolean)
+        .join(" — ");
+      caption.textContent = label;
+      caption.classList.add("visible");
+
+      if (activeImg) {
+        const old = activeImg;
+        old.classList.remove("visible");
+        setTimeout(() => old.remove(), 2100);
+      }
+      activeImg = img;
+    };
+
+    img.onerror = () => {
+      // Skip broken images and move on immediately
+      advance();
+    };
+  }
+
+  function advance() {
+    if (currentIndex >= playlist.length) {
+      playlist = shuffledArtworks();
+      currentIndex = 0;
+    }
+    showArtwork(playlist[currentIndex]);
+    currentIndex++;
+    setTimeout(advance, DISPLAY_TIME);
+  }
+
+  advance();
+</script>
+
+</body>
+</html>
