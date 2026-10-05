@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TV Display</title>
+<style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  .art-img {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+  }
+  .art-img.visible { opacity: 1; }
+  .caption {
+    position: fixed;
+    bottom: 24px;
+    width: 100%;
+    text-align: center;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    font-size: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="caption" id="caption"></div>
+
+<script>
+  // How long each image stays on screen (ms)
+  const DISPLAY_TIME = 25000;
+
+  // Public-domain images from Wikimedia Commons.
+  // To add one, copy a file's exact name from commons.wikimedia.org.
+  // You can also use a full web link or a local file as "src" instead of "file".
+  const IMAGES = [
+    { title: "Among the Sierra Nevada — Albert Bierstadt (1868)", file: "Albert Bierstadt - Among the Sierra Nevada, California - Google Art Project.jpg" },
+    { title: "Valley of the Yosemite — Albert Bierstadt (1864)", file: "Albert Bierstadt - Valley of the Yosemite - Google Art Project.jpg" },
+    { title: "Wanderer above the Sea of Fog — Caspar David Friedrich (1818)", file: "Caspar David Friedrich - Wanderer above the sea of fog.jpg" },
+    { title: "The Savage State — Thomas Cole (1836)", file: "Cole Thomas The Course of Empire The Savage State 1836.jpg" },
+    { title: "The Consummation of Empire — Thomas Cole (1836)", file: "Cole Thomas The Consummation The Course of the Empire 1836.jpg" },
+    { title: "Destruction — Thomas Cole (1836)", file: "Cole Thomas The Course of Empire Destruction 1836.jpg" },
+    { title: "Desolation — Thomas Cole (1836)", file: "Cole Thomas The Course of Empire Desolation 1836.jpg" },
+    { title: "Saint George and the Dragon — Paolo Uccello (c. 1470)", file: "Saint George and the Dragon by Paolo Uccello (London) 01.jpg" },
+    { title: "Saint George and the Dragon — Paolo Uccello (c. 1430)", file: "Saint George and the Dragon by Paolo Uccello (Paris) 01.jpg" },
+    { title: "Carta Marina, with sea monsters — Olaus Magnus (1539)", file: "Carta Marina.jpeg" },
+    { title: "ENIAC, the first general-purpose computer — U.S. Army (1946)", file: "Classic shot of the ENIAC (full resolution).jpg" },
+
+    // Vintage ads and posters
+    { title: "Drink Coca-Cola 5¢ — 1890s ad", file: "Cocacola-5cents-1900 edit1.jpg" },
+    { title: "I Want You for U.S. Army — James Montgomery Flagg (1917)", file: "Unclesamwantyou.jpg" },
+    { title: "We Can Do It! — J. Howard Miller (1943)", file: "We Can Do It!.jpg" },
+
+    // Nuclear tests
+    { title: "Trinity, the first nuclear test (1945)", file: "Trinity Detonation T&B.jpg" },
+    { title: "Operation Crossroads, Baker test (1946)", file: "Operation Crossroads Baker Edit.jpg" },
+    { title: "Castle Bravo (1954)", file: "Castle Bravo Blast.jpg" },
+
+    // Presidents
+    { title: "George Washington — Gilbert Stuart", file: "Gilbert Stuart Williamstown Portrait of George Washington.jpg" },
+    { title: "Abraham Lincoln (1863)", file: "Abraham Lincoln O-77 matte collodion print.jpg" },
+    { title: "Theodore Roosevelt", file: "Theodore Roosevelt by the Pach Bros.jpg" },
+    { title: "Franklin D. Roosevelt (1944)", file: "FDR 1944 Color Portrait.jpg" },
+    { title: "John F. Kennedy", file: "John F. Kennedy, White House color photo portrait.jpg" },
+
+    // Pin-ups
+    { title: "Betty Grable — Frank Powolny (1943)", file: "Betty Grable 20th Century Fox.jpg" },
+
+    // Famous art
+    { title: "Mona Lisa — Leonardo da Vinci", file: "Mona Lisa, by Leonardo da Vinci, from C2RMF retouched.jpg" },
+    { title: "The Starry Night — Vincent van Gogh (1889)", file: "Van Gogh - Starry Night - Google Art Project.jpg" },
+    { title: "The Great Wave off Kanagawa — Hokusai", file: "Tsunami by hokusai 19th century.jpg" },
+    { title: "Girl with a Pearl Earring — Johannes Vermeer (1665)", file: "1665 Girl with a Pearl Earring.jpg" },
+
+    // Race cars
+    { title: "Start of the 1915 Indianapolis 500", file: "1915Indianapolis500StartNewYorkTimes.jpg" },
+    { title: "1924 Bugatti Type 35 — photo by Lothar Spurzem", file: "Bugatti 35, Bj. 1924 - Marc Nicolosi (Spu 16.08.1975).jpg" },
+    { title: "1930 Bugatti Type 35C — photo by Lothar Spurzem", file: "Bugatti 35 C Bj 1930, Helmut Schellenberg, (1979-08-10 Sp).jpg" },
+
+    // Firearms
+    { title: "Colt Single Action Army \"Peacemaker\" — Metropolitan Museum of Art", file: "\"Peacemaker\" Colt Single-Action Army Revolver, serial no. 4519 MET 59.143.4 169744 jan2015.jpg" },
+
+    // Kung fu
+    { title: "Shaolin monks training — Shaolin Temple mural", file: "Shaolin-wushu.jpg" },
+
+    // Space
+    { title: "Pillars of Creation — NASA / Hubble (2014)", file: "Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg" },
+    { title: "Earthrise — NASA / Apollo 8 (1968)", file: "NASA-Apollo8-Dec24-Earthrise.jpg" },
+    { title: "The Blue Marble — NASA / Apollo 17 (1972)", file: "The_Blue_Marble_(remastered).jpg" },
+    { title: "Buzz Aldrin on the Moon — NASA / Apollo 11 (1969)", file: "Aldrin_Apollo_11.jpg" },
+
+    // Aviation
+    { title: "The Wright brothers' first flight (1903)", file: "First flight2.jpg" },
+    { title: "Lockheed SR-71 Blackbird", file: "Lockheed SR-71 Blackbird.jpg" },
+    { title: "The Hindenburg (1937)", file: "Hindenburg disaster.jpg" },
+
+    // Science
+    { title: "Nikola Tesla with his equipment", file: "Nikola Tesla, with his equipment Wellcome M0014782.jpg" },
+
+    // Wild West
+    { title: "The Wild Bunch, with Butch Cassidy and the Sundance Kid (1900)", file: "Wildbunchlarge.jpg" },
+
+    // Monsters and myth
+    { title: "The Destruction of Leviathan — Gustave Doré (1865)", file: "Destruction of Leviathan.png" },
+    { title: "The Colossal Octopus — Pierre Denys de Montfort (1801)", file: "Colossal octopus by Pierre Denys de Montfort.jpg" },
+
+    // Japan
+    { title: "Takiyasha the Witch and the Skeleton Spectre — Utagawa Kuniyoshi (c. 1844)", file: "Takiyasha the Witch and the Skeleton Spectre.jpg" },
+    { title: "Fine Wind, Clear Morning (Red Fuji) — Hokusai", file: "Red Fuji southern wind clear morning.jpg" },
+
+    // Big machines and builders
+    { title: "Building the Empire State Building — Lewis Hine (1930)", file: "Old timer structural worker2.jpg" },
+    { title: "Hoover Dam under construction (1934)", file: "Damforms.jpg" },
+    { title: "Rosie the Riveter at Vultee Aircraft (1943)", file: "Rosie the Riveter (Vultee) DS.jpg" }
+  ];
+
+  function urlFor(item) {
+    if (item.src) return item.src;
+    // width=1920 asks Wikimedia for a TV-sized copy so big files load fast
+    return "https://commons.wikimedia.org/wiki/Special:FilePath/" +
+      encodeURIComponent(item.file) + "?width=1920";
+  }
+
+  let playlist = [];
+  let index = 0;
+  let activeImg = null;
+
+  function shuffle(list) {
+    const items = list.slice();
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  }
+
+  function next() {
+    if (index >= playlist.length) {
+      playlist = shuffle(IMAGES);
+      index = 0;
+    }
+    const item = playlist[index++];
+    const img = document.createElement("img");
+    img.className = "art-img";
+
+    img.onload = () => {
+      document.body.appendChild(img);
+      requestAnimationFrame(() => img.classList.add("visible"));
+      document.getElementById("caption").textContent = item.title || "";
+      if (activeImg) {
+        const old = activeImg;
+        old.classList.remove("visible");
+        setTimeout(() => old.remove(), 2100);
+      }
+      activeImg = img;
+      setTimeout(next, DISPLAY_TIME); // the only timer: set after a successful load
+    };
+
+    // Broken image: try the next one after a short pause (no extra timers)
+    img.onerror = () => setTimeout(next, 1000);
+
+    img.src = urlFor(item);
+  }
+
+  next();
+</script>
+
+</body>
+</html>
